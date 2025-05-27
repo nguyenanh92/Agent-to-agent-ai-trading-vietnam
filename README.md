@@ -63,8 +63,8 @@ ai-trading-team-vietnam/
 
 ```bash
 # Clone repository
-git clone https://github.com/your-username/ai-trading-team-vietnam.git
-cd ai-trading-team-vietnam
+git https://github.com/huudatscience/Agent-to-agent-ai-trading-vietnam
+cd Agent-to-agent-ai-trading-vietnam
 
 # Tạo virtual environment
 python -m venv venv
@@ -209,21 +209,6 @@ CACHE_DURATION=300
 }
 ```
 
-## 🧪 Testing
-
-```bash
-# Run unit tests
-python -m pytest tests/
-
-# Run specific test
-python -m pytest tests/test_agents.py
-
-# Run with coverage
-python -m pytest --cov=src tests/
-```
-
-## 🚀 Deployment
-
 ### Streamlit Cloud
 1. Push code lên GitHub
 2. Vào [share.streamlit.io](https://share.streamlit.io)
@@ -306,56 +291,3 @@ Dự án này được licensed dưới [MIT License](LICENSE).
 - **GitHub Issues**: [Report bugs và feature requests](https://github.com/your-username/ai-trading-team-vietnam/issues)
 - **Email**: your-email@example.com
 - **Documentation**: [Xem docs đầy đủ](https://your-docs-site.com)
-
-## 🏆 Roadmap
-
-### Version 2.0
-- [ ] Real-time WebSocket data feeds
-- [ ] Advanced charting với TradingView
-- [ ] Backtesting engine
-- [ ] Portfolio optimization algorithms
-- [ ] Mobile responsive design
-
-### Version 3.0
-- [ ] Crypto trading support
-- [ ] Options và derivatives analysis
-- [ ] ESG scoring integration
-- [ ] Social trading features
-- [ ] AI-powered news summarization
-
-### Version 4.0
-- [ ] Multi-language support (English)
-- [ ] Regional markets expansion (Thailand, Singapore)
-- [ ] Advanced ML models
-- [ ] Automated trading execution
-- [ ] Institutional features
-
-## 🎉 Acknowledgments
-
-- **Google AI** - For providing Gemini API
-- **Vietnamese Stock Exchanges** - HOSE, HNX, UPCOM
-- **Open Source Community** - For amazing libraries
-- **Vietnamese Investor Community** - For feedback và support
-
-## 📚 References & Resources
-
-### Vietnamese Stock Market
-- [State Securities Commission of Vietnam](https://www.ssc.gov.vn/)
-- [Ho Chi Minh Stock Exchange (HOSE)](https://www.hsx.vn/)
-- [Hanoi Stock Exchange (HNX)](https://www.hnx.vn/)
-
-### Financial Education
-- [CFA Institute](https://www.cfainstitute.org/)
-- [FRM Certification](https://www.garp.org/frm)
-- [Investopedia Vietnam](https://www.investopedia.com/)
-
-### Technical Resources  
-- [Streamlit Documentation](https://docs.streamlit.io/)
-- [Google AI Documentation](https://ai.google.dev/)
-- [Plotly Python](https://plotly.com/python/)
-
----
-
-**Made with ❤️ for Vietnamese Investors**
-
-*Disclaimer: This is an educational tool and should not be considered as financial advice. Always consult with qualified financial advisors and conduct your own research before making investment decisions.*
