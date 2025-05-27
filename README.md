@@ -130,10 +130,10 @@ Hệ thống hỗ trợ các bluechips chính của thị trường Việt Nam:
 - **PLX** - Petrolimex
 
 ### 💻 Technology  
-- **FPT** - FPT Corporation
+- **Phenikaa** - Trường Công nghệ thông tin, Phenikaa University
 
 ## 🆘 Support & Contact
 
-- **GitHub Issues**: [Report bugs và feature requests](https://github.com/your-username/ai-trading-team-vietnam/issues)
-- **Email**: your-email@example.com
-- **Documentation**: [Xem docs đầy đủ](https://your-docs-site.com)
+- **GitHub Issues**: [Report bugs và feature requests](https://github.com/huudatscience)
+- **Email**: dat.nguyenhuu@phenikaa-uni.edu.vn
+- **Documentation**: [Xem docs đầy đủ](https://huudatscience.github.io/)
