@@ -22,40 +22,9 @@ Hệ thống phân tích đầu tư chứng khoán Việt Nam với 3 AI Agents 
 - ✅ **Beautiful UI**: Giao diện đẹp với Streamlit
 - ✅ **Export Results**: Xuất phân tích dưới dạng JSON
 
-## 🏗️ Kiến trúc hệ thống
+## 🏗️ Hình ảnh minh họa
 
-```
-ai-trading-team-vietnam/
-│
-├── 📁 src/                          # Source code chính
-│   ├── 📁 agents/                   # AI Agents
-│   │   ├── base_agent.py           # Base class
-│   │   ├── market_analyst.py       # Market Analyst Agent
-│   │   ├── risk_manager.py         # Risk Manager Agent
-│   │   └── portfolio_manager.py    # Portfolio Manager Agent
-│   │
-│   ├── 📁 data/                     # Data handling
-│   │   ├── vn_stock_api.py         # VN stock market APIs
-│   │   ├── news_scraper.py         # News sentiment analysis
-│   │   └── market_data.py          # Market data processing
-│   │
-│   ├── 📁 ui/                       # User Interface
-│   │   ├── main_dashboard.py       # Main Streamlit app
-│   │   ├── components.py           # UI components
-│   │   └── styles.py               # CSS styling
-│   │
-│   └── 📁 utils/                    # Utilities
-│       ├── config.py               # Configuration management
-│       ├── helpers.py              # Helper functions
-│       └── constants.py            # VN market constants
-│
-├── 📁 data/                         # Data storage
-├── 📁 tests/                        # Unit tests
-├── 📁 docs/                         # Documentation
-├── requirements.txt                 # Dependencies
-├── app.py                          # Main entry point
-└── README.md                       # This file
-```
+![alt text](image.png)
 
 ## 🚀 Quick Start
 
