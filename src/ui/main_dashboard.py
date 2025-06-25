@@ -39,13 +39,17 @@ st.set_page_config(
 # Load custom CSS
 load_custom_css()
 
-# Initialize session state
-if 'conversation_history' not in st.session_state:
-    st.session_state.conversation_history = []
-if 'portfolio_data' not in st.session_state:
-    st.session_state.portfolio_data = []
-if 'agent_manager' not in st.session_state:
-    st.session_state.agent_manager = None
+def initialize_session_state():
+    """Initialize session state variables"""
+    if 'conversation_history' not in st.session_state:
+        st.session_state.conversation_history = []
+    if 'portfolio_data' not in st.session_state:
+        st.session_state.portfolio_data = []
+    if 'agent_manager' not in st.session_state:
+        st.session_state.agent_manager = None
+
+# Initialize session state immediately
+initialize_session_state()
 
 class TradingDashboard:
     """Main dashboard class"""
@@ -615,6 +619,9 @@ class TradingDashboard:
 
 def main():
     """Main function"""
+    # Ensure session state is initialized
+    initialize_session_state()
+    
     dashboard = TradingDashboard()
     
     # Render header

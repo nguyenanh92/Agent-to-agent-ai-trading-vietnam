@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class VNStockData:
-    """Data structure cho Vietnamese stock - compatible với hệ thống hiện tại"""
+    """Data structure cho Vietnamese stock - enhanced với technical analysis"""
     symbol: str
     price: float
     change: float
@@ -34,6 +34,26 @@ class VNStockData:
     pb_ratio: Optional[float]
     sector: str
     exchange: str  # HOSE, HNX, UPCOM
+    
+    # Technical Analysis Data
+    rsi: Optional[float] = None
+    sma_20: Optional[float] = None
+    sma_50: Optional[float] = None
+    support_level: Optional[float] = None
+    resistance_level: Optional[float] = None
+    
+    # Additional Financial Ratios
+    roe: Optional[float] = None
+    roa: Optional[float] = None
+    
+    # Market Context
+    correlation_vnindex: Optional[float] = None
+    relative_performance: Optional[float] = None
+    volume_trend: Optional[str] = None
+    
+    # Company Information
+    industry: Optional[str] = None
+    outstanding_shares: Optional[int] = None
 
 class VNStockAPIVNStocks:
     """
@@ -117,16 +137,16 @@ class VNStockAPIVNStocks:
             return None
     
     async def _fetch_vnstocks_data(self, symbol: str) -> Optional[VNStockData]:
-        """Fetch real data từ VNStocks API"""
+        """Fetch enhanced data từ VNStocks API với technical analysis"""
         try:
             # Initialize stock object
             stock = Vnstock().stock(symbol=symbol, source='VCI')
             
-            # Get latest price data (1 day history to get current price)
+            # Get extended historical data for technical analysis
             end_date = datetime.now().strftime('%Y-%m-%d')
-            start_date = (datetime.now() - timedelta(days=5)).strftime('%Y-%m-%d')
+            start_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')  # 3 months for better analysis
             
-            # Fetch historical data for current price
+            # Fetch historical data
             price_data = stock.quote.history(start=start_date, end=end_date, interval='1D')
             
             if price_data.empty:
@@ -136,7 +156,7 @@ class VNStockAPIVNStocks:
             # Get latest row
             latest = price_data.iloc[-1]
             
-            # Calculate change and change_percent first
+            # Calculate change and change_percent
             if len(price_data) >= 2:
                 prev_close = price_data.iloc[-2]['close']
                 current_price = latest['close']
@@ -146,6 +166,30 @@ class VNStockAPIVNStocks:
                 current_price = latest['close']
                 change = 0
                 change_percent = 0
+            
+            # Calculate technical indicators
+            prices = price_data['close'].tolist()
+            volumes = price_data['volume'].tolist()
+            
+            # RSI calculation
+            rsi = self._calculate_rsi(prices) if len(prices) >= 14 else None
+            
+            # Moving averages
+            sma_20 = sum(prices[-20:]) / 20 if len(prices) >= 20 else None
+            sma_50 = sum(prices[-50:]) / 50 if len(prices) >= 50 else None
+            
+            # Support/Resistance levels
+            support_level = min(prices[-20:]) if len(prices) >= 20 else None
+            resistance_level = max(prices[-20:]) if len(prices) >= 20 else None
+            
+            # Volume trend analysis
+            volume_trend = self._analyze_volume_trend(volumes) if len(volumes) >= 10 else "Unknown"
+            
+            # Market correlation with VN-Index
+            correlation_vnindex = await self._calculate_market_correlation(symbol, prices, start_date, end_date)
+            
+            # Relative performance vs VN-Index
+            relative_performance = await self._calculate_relative_performance(symbol, prices, start_date, end_date)
             
             # Get company overview and financial ratios
             try:
@@ -162,55 +206,74 @@ class VNStockAPIVNStocks:
                         # current_price is in thousands, so multiply by 1000 first, then convert to billions
                         market_cap = (issue_share * current_price * 1000) / 1_000_000_000  # Convert to billions VND
                 
-                # Lấy P/E, P/B từ Finance ratios
+                # Lấy P/E, P/B và các ratios khác từ Finance
                 finance = Finance(symbol=symbol, source='VCI')
                 ratio_data = finance.ratio(period='year', lang='en')
                 
                 pe_ratio = None
                 pb_ratio = None
+                roe = None
+                roa = None
+                industry = None
+                outstanding_shares = None
+                
+                # Extract company industry info
+                if not company_info.empty:
+                    info = company_info.iloc[0]
+                    industry = info.get('icb_name3', info.get('industryName', 'Unknown'))
+                    outstanding_shares = info.get('issue_share', None)
                 
                 if not ratio_data.empty:
-                    # Lấy dữ liệu năm gần nhất
-                    latest_ratio = ratio_data.iloc[-1]
+                    # Sắp xếp theo năm để lấy dữ liệu mới nhất
+                    if ('Meta', 'yearReport') in ratio_data.columns:
+                        ratio_data = ratio_data.sort_values(('Meta', 'yearReport'), ascending=False)
                     
-                    # Tìm P/E ratio trong các columns
-                    pe_columns = [col for col in ratio_data.columns if 'P/E' in str(col) or 'PE' in str(col) or 'Price' in str(col)]
-                    pb_columns = [col for col in ratio_data.columns if 'P/B' in str(col) or 'PB' in str(col) or 'Book' in str(col)]
+                    # Lấy dữ liệu năm gần nhất (dòng đầu tiên sau khi sort)
+                    latest_ratio = ratio_data.iloc[0]
+                    year_report = latest_ratio.get(('Meta', 'yearReport'), 'Unknown')
                     
-                    # Extract P/E
-                    for col in pe_columns:
-                        try:
+                    logger.info(f"📊 Using financial data for {symbol} from year: {year_report}")
+                    
+                    # Tìm các ratios trong columns với pattern matching chính xác hơn
+                    for col in ratio_data.columns:
+                        if isinstance(col, tuple) and len(col) == 2:
+                            category, metric = col
                             value = latest_ratio[col]
+                            
                             if pd.notna(value) and value != 0:
-                                pe_ratio = float(value)
-                                logger.debug(f"Found P/E for {symbol} in column {col}: {pe_ratio}")
-                                break
-                        except:
-                            continue
+                                try:
+                                    # Chỉ tiêu định giá
+                                    if category == 'Chỉ tiêu định giá':
+                                        if metric == 'P/E' and pe_ratio is None:
+                                            pe_ratio = float(value)
+                                        elif metric == 'P/B' and pb_ratio is None:
+                                            pb_ratio = float(value)
+                                    
+                                    # Chỉ tiêu khả năng sinh lợi
+                                    elif category == 'Chỉ tiêu khả năng sinh lợi':
+                                        if metric == 'ROE (%)' and roe is None:
+                                            roe = float(value)
+                                        elif metric == 'ROA (%)' and roa is None:
+                                            roa = float(value)
+                                except (ValueError, TypeError):
+                                    continue
                     
-                    # Extract P/B
-                    for col in pb_columns:
-                        try:
-                            value = latest_ratio[col]
-                            if pd.notna(value) and value != 0:
-                                pb_ratio = float(value)
-                                logger.debug(f"Found P/B for {symbol} in column {col}: {pb_ratio}")
-                                break
-                        except:
-                            continue
-                    
-                    # Log available columns for debugging
-                    logger.debug(f"Ratio columns for {symbol}: {list(ratio_data.columns)}")
+                    # Log kết quả để debug
+                    logger.info(f"📈 Ratios for {symbol}: PE={pe_ratio}, PB={pb_ratio}, ROE={roe}, ROA={roa}")
                 
             except Exception as e:
                 logger.warning(f"⚠️ Could not fetch financial data for {symbol}: {e}")
                 market_cap = 0
                 pe_ratio = None
                 pb_ratio = None
+                roe = None
+                roa = None
+                industry = None
+                outstanding_shares = None
             
             # Get stock metadata
             metadata = self.vn_stocks_metadata.get(symbol, {
-                'sector': 'Unknown',
+                'sector': industry or 'Unknown',
                 'exchange': 'HOSE'
             })
             
@@ -224,7 +287,27 @@ class VNStockAPIVNStocks:
                 pe_ratio=float(pe_ratio) if pe_ratio else None,
                 pb_ratio=float(pb_ratio) if pb_ratio else None,
                 sector=metadata['sector'],
-                exchange=metadata['exchange']
+                exchange=metadata['exchange'],
+                
+                # Technical Analysis Data
+                rsi=round(rsi, 2) if rsi else None,
+                sma_20=round(sma_20 * 1000, 2) if sma_20 else None,  # Convert to VND
+                sma_50=round(sma_50 * 1000, 2) if sma_50 else None,  # Convert to VND
+                support_level=round(support_level * 1000, 2) if support_level else None,  # Convert to VND
+                resistance_level=round(resistance_level * 1000, 2) if resistance_level else None,  # Convert to VND
+                
+                # Additional Financial Ratios
+                roe=round(roe, 4) if roe else None,
+                roa=round(roa, 4) if roa else None,
+                
+                # Market Context
+                correlation_vnindex=round(correlation_vnindex, 3) if correlation_vnindex else None,
+                relative_performance=round(relative_performance, 2) if relative_performance else None,
+                volume_trend=volume_trend,
+                
+                # Company Information
+                industry=industry,
+                outstanding_shares=int(outstanding_shares) if outstanding_shares else None
             )
             
         except Exception as e:
@@ -590,6 +673,138 @@ class VNStockAPIVNStocks:
         
         cached_time = self.cache[cache_key]['timestamp']
         return (time.time() - cached_time) < self.cache_duration
+    
+    def _calculate_rsi(self, prices: List[float], period: int = 14) -> Optional[float]:
+        """Calculate RSI indicator"""
+        try:
+            if len(prices) < period + 1:
+                return None
+            
+            gains = []
+            losses = []
+            
+            for i in range(1, len(prices)):
+                change = prices[i] - prices[i-1]
+                if change > 0:
+                    gains.append(change)
+                    losses.append(0)
+                else:
+                    gains.append(0)
+                    losses.append(abs(change))
+            
+            # Take last 'period' values
+            recent_gains = gains[-period:]
+            recent_losses = losses[-period:]
+            
+            avg_gain = sum(recent_gains) / period
+            avg_loss = sum(recent_losses) / period
+            
+            if avg_loss == 0:
+                return 100
+            
+            rs = avg_gain / avg_loss
+            rsi = 100 - (100 / (1 + rs))
+            
+            return rsi
+        except Exception as e:
+            logger.error(f"❌ Error calculating RSI: {e}")
+            return None
+    
+    def _analyze_volume_trend(self, volumes: List[int]) -> str:
+        """Analyze volume trend"""
+        try:
+            if len(volumes) < 10:
+                return "Unknown"
+            
+            recent_avg = sum(volumes[-5:]) / 5
+            previous_avg = sum(volumes[-10:-5]) / 5
+            
+            if recent_avg > previous_avg * 1.2:
+                return "Increasing"
+            elif recent_avg < previous_avg * 0.8:
+                return "Decreasing"
+            else:
+                return "Stable"
+        except Exception as e:
+            logger.error(f"❌ Error analyzing volume trend: {e}")
+            return "Unknown"
+    
+    async def _calculate_market_correlation(self, symbol: str, prices: List[float], start_date: str, end_date: str) -> Optional[float]:
+        """Calculate correlation with VN-Index"""
+        try:
+            # Get VN-Index data
+            vnindex = Vnstock().stock(symbol='VNINDEX', source='VCI')
+            vnindex_data = vnindex.quote.history(start=start_date, end=end_date, interval='1D')
+            
+            if vnindex_data.empty:
+                return None
+            
+            vnindex_prices = vnindex_data['close'].tolist()
+            
+            # Ensure same length
+            min_length = min(len(prices), len(vnindex_prices))
+            if min_length < 10:
+                return None
+            
+            stock_prices = prices[-min_length:]
+            market_prices = vnindex_prices[-min_length:]
+            
+            # Calculate correlation
+            return self._calculate_correlation(stock_prices, market_prices)
+            
+        except Exception as e:
+            logger.error(f"❌ Error calculating market correlation for {symbol}: {e}")
+            return None
+    
+    async def _calculate_relative_performance(self, symbol: str, prices: List[float], start_date: str, end_date: str) -> Optional[float]:
+        """Calculate relative performance vs VN-Index"""
+        try:
+            if len(prices) < 2:
+                return None
+            
+            # Stock return
+            stock_return = (prices[-1] - prices[0]) / prices[0] * 100
+            
+            # Get VN-Index return
+            vnindex = Vnstock().stock(symbol='VNINDEX', source='VCI')
+            vnindex_data = vnindex.quote.history(start=start_date, end=end_date, interval='1D')
+            
+            if vnindex_data.empty or len(vnindex_data) < 2:
+                return None
+            
+            vnindex_prices = vnindex_data['close'].tolist()
+            market_return = (vnindex_prices[-1] - vnindex_prices[0]) / vnindex_prices[0] * 100
+            
+            # Relative performance
+            return stock_return - market_return
+            
+        except Exception as e:
+            logger.error(f"❌ Error calculating relative performance for {symbol}: {e}")
+            return None
+    
+    def _calculate_correlation(self, x: List[float], y: List[float]) -> Optional[float]:
+        """Calculate correlation coefficient"""
+        try:
+            if len(x) != len(y) or len(x) < 2:
+                return None
+            
+            n = len(x)
+            sum_x = sum(x)
+            sum_y = sum(y)
+            sum_xy = sum(x[i] * y[i] for i in range(n))
+            sum_x2 = sum(xi * xi for xi in x)
+            sum_y2 = sum(yi * yi for yi in y)
+            
+            numerator = n * sum_xy - sum_x * sum_y
+            denominator = ((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y)) ** 0.5
+            
+            if denominator == 0:
+                return None
+            
+            return numerator / denominator
+        except Exception as e:
+            logger.error(f"❌ Error calculating correlation: {e}")
+            return None
     
     async def get_historical_data(self, symbol: str, days: int = 30) -> List[Dict[str, Any]]:
         """
