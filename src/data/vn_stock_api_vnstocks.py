@@ -277,15 +277,39 @@ class VNStockAPIVNStocks:
                 'exchange': 'HOSE'
             })
             
+            # Calculate real-time PE/PB ratios using current price
+            current_price_vnd = float(current_price) * 1000  # Convert to VND
+            
+            # Get real-time PE/PB if we have EPS/BVPS data
+            pe_ratio_realtime = None
+            pb_ratio_realtime = None
+            
+            if not ratio_data.empty:
+                # Try to get EPS and BVPS for real-time calculation
+                latest_data = ratio_data.iloc[0]  # Already sorted by year
+                eps = latest_data.get(('Chỉ tiêu định giá', 'EPS (VND)'), None)
+                bvps = latest_data.get(('Chỉ tiêu định giá', 'BVPS (VND)'), None)
+                
+                if eps and eps > 0:
+                    pe_ratio_realtime = current_price_vnd / float(eps)
+                if bvps and bvps > 0:
+                    pb_ratio_realtime = current_price_vnd / float(bvps)
+                
+                # Use real-time calculation if available, otherwise use reported ratios
+                pe_ratio = pe_ratio_realtime if pe_ratio_realtime else pe_ratio
+                pb_ratio = pb_ratio_realtime if pb_ratio_realtime else pb_ratio
+                
+                logger.info(f"💰 Real-time ratios for {symbol}: PE={pe_ratio:.2f}, PB={pb_ratio:.2f}")
+            
             return VNStockData(
                 symbol=symbol,
-                price=float(current_price) * 1000,  # Convert to VND (API returns in thousands)
+                price=current_price_vnd,
                 change=float(change) * 1000,  # Convert to VND
                 change_percent=round(change_percent, 2),
                 volume=int(latest.get('volume', 0)),
                 market_cap=float(market_cap) if market_cap else 0,
-                pe_ratio=float(pe_ratio) if pe_ratio else None,
-                pb_ratio=float(pb_ratio) if pb_ratio else None,
+                pe_ratio=round(float(pe_ratio), 2) if pe_ratio else None,
+                pb_ratio=round(float(pb_ratio), 2) if pb_ratio else None,
                 sector=metadata['sector'],
                 exchange=metadata['exchange'],
                 
