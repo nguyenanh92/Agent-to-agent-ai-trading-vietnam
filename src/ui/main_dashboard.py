@@ -22,7 +22,7 @@ from agents.base_agent import AgentManager, create_market_context
 from agents.market_analyst import MarketAnalystAgent
 from agents.risk_manager import RiskManagerAgent  
 from agents.portfolio_manager import PortfolioManagerAgent
-from data.vn_stock_api import VNStockAPI, get_multiple_stocks
+from data.vn_stock_api_vnstocks import VNStockAPIVNStocks as VNStockAPI
 from ui.components import render_agent_card, render_stock_chart, render_performance_metrics
 from ui.styles import load_custom_css
 from utils.config import load_config
@@ -142,18 +142,40 @@ class TradingDashboard:
             st.success("✅ API key đã được thiết lập")
             
             # Stock selection
-            st.subheader("📊 Chọn cổ phiếu")
+            st.subheader("📊 Nhập mã cổ phiếu")
             
-            available_stocks = self.stock_api.get_available_symbols()
-            stock_options = {f"{stock['symbol']} - {stock['name']}": stock['symbol'] 
-                           for stock in available_stocks}
-            
-            selected_stock_display = st.selectbox(
+            # Input field for stock symbol
+            selected_stock = st.text_input(
                 "Mã cổ phiếu:",
-                options=list(stock_options.keys()),
-                index=0
-            )
-            selected_stock = stock_options[selected_stock_display]
+                value="VCB",
+                placeholder="Nhập mã cổ phiếu (VD: VCB, FPT, VIC...)",
+                help="Nhập mã cổ phiếu niêm yết trên HOSE hoặc HNX"
+            ).upper().strip()
+            
+            # Validate stock symbol
+            if selected_stock:
+                if len(selected_stock) < 3 or len(selected_stock) > 5:
+                    st.warning("⚠️ Mã cổ phiếu thường có 3-5 ký tự")
+                elif not selected_stock.isalpha():
+                    st.warning("⚠️ Mã cổ phiếu chỉ chứa chữ cái")
+                else:
+                    st.success(f"✅ Đã chọn: {selected_stock}")
+            
+            # Show popular stocks as suggestions
+            st.markdown("**💡 Gợi ý mã phổ biến:**")
+            popular_stocks = ['VCB', 'VIC', 'FPT', 'HPG', 'MSN', 'VHM', 'TCB', 'BID', 'CTG', 'MWG']
+            
+            # Create clickable buttons for popular stocks
+            cols = st.columns(5)
+            for i, stock in enumerate(popular_stocks):
+                with cols[i % 5]:
+                    if st.button(stock, key=f"stock_{stock}", help=f"Chọn {stock}"):
+                        st.session_state.selected_stock_input = stock
+                        st.rerun()
+            
+            # Update selected stock if button was clicked
+            if hasattr(st.session_state, 'selected_stock_input'):
+                selected_stock = st.session_state.selected_stock_input
             
             # Investment amount
             investment_amount = st.number_input(
@@ -207,43 +229,50 @@ class TradingDashboard:
     
     def render_stock_analysis_section(self, stock_symbol: str):
         """Render stock analysis section"""
+        if not stock_symbol or len(stock_symbol.strip()) == 0:
+            st.info("💡 Vui lòng nhập mã cổ phiếu để bắt đầu phân tích")
+            return None
+            
         st.subheader(f"📈 Phân tích {stock_symbol}")
         
-        try:
-            # Get stock data
-            stock_data = asyncio.run(self.stock_api.get_stock_data(stock_symbol))
-            
-            if not stock_data:
-                st.error(f"❌ Không thể tải dữ liệu cho {stock_symbol}")
+        # Show loading spinner
+        with st.spinner(f"Đang tải dữ liệu cho {stock_symbol}..."):
+            try:
+                # Get stock data
+                stock_data = asyncio.run(self.stock_api.get_stock_data(stock_symbol))
+                
+                if not stock_data:
+                    st.error(f"❌ Không tìm thấy mã cổ phiếu '{stock_symbol}'")
+                    st.info("💡 Vui lòng kiểm tra lại mã cổ phiếu. Các mã phổ biến: VCB, FPT, VIC, HPG, MSN...")
+                    return None
+                
+                # Display current stock info
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric(
+                        "Giá hiện tại",
+                        f"{stock_data.price:,.0f} VND",
+                        delta=f"{stock_data.change:+,.0f} VND ({stock_data.change_percent:+.2f}%)"
+                    )
+                
+                with col2:
+                    st.metric("Volume", f"{stock_data.volume:,}")
+                
+                with col3:
+                    st.metric("P/E Ratio", f"{stock_data.pe_ratio:.1f}" if stock_data.pe_ratio else "N/A")
+                
+                with col4:
+                    st.metric("Market Cap", format_vnd(stock_data.market_cap * 1_000_000_000))
+                
+                # Stock chart
+                self.render_stock_chart(stock_symbol)
+                
+                return stock_data
+                
+            except Exception as e:
+                st.error(f"❌ Lỗi phân tích {stock_symbol}: {e}")
                 return None
-            
-            # Display current stock info
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric(
-                    "Giá hiện tại",
-                    f"{stock_data.price:,.0f} VND",
-                    delta=f"{stock_data.change:+,.0f} VND ({stock_data.change_percent:+.2f}%)"
-                )
-            
-            with col2:
-                st.metric("Volume", f"{stock_data.volume:,}")
-            
-            with col3:
-                st.metric("P/E Ratio", f"{stock_data.pe_ratio:.1f}" if stock_data.pe_ratio else "N/A")
-            
-            with col4:
-                st.metric("Market Cap", format_vnd(stock_data.market_cap * 1_000_000_000))
-            
-            # Stock chart
-            self.render_stock_chart(stock_symbol)
-            
-            return stock_data
-            
-        except Exception as e:
-            st.error(f"❌ Lỗi phân tích {stock_symbol}: {e}")
-            return None
     
     def render_stock_chart(self, stock_symbol: str):
         """Render stock price chart"""

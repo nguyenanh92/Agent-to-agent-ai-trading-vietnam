@@ -159,7 +159,8 @@ class VNStockAPIVNStocks:
                     # Market cap có thể tính từ issue_share * current_price
                     issue_share = company_info.iloc[0].get('issue_share', 0)
                     if issue_share and current_price:
-                        market_cap = (issue_share * current_price) / 1_000_000_000  # Convert to billions VND
+                        # current_price is in thousands, so multiply by 1000 first, then convert to billions
+                        market_cap = (issue_share * current_price * 1000) / 1_000_000_000  # Convert to billions VND
                 
                 # Lấy P/E, P/B từ Finance ratios
                 finance = Finance(symbol=symbol, source='VCI')
@@ -215,8 +216,8 @@ class VNStockAPIVNStocks:
             
             return VNStockData(
                 symbol=symbol,
-                price=float(current_price),
-                change=float(change),
+                price=float(current_price) * 1000,  # Convert to VND (API returns in thousands)
+                change=float(change) * 1000,  # Convert to VND
                 change_percent=round(change_percent, 2),
                 volume=int(latest.get('volume', 0)),
                 market_cap=float(market_cap) if market_cap else 0,
@@ -308,8 +309,8 @@ class VNStockAPIVNStocks:
                     change_percent = 0
                 
                 return {
-                    'value': round(float(current_value), 2),
-                    'change': round(float(change), 2),
+                    'value': round(float(current_value) * 1000, 2),  # Convert to actual index points
+                    'change': round(float(change) * 1000, 2),  # Convert to actual change
                     'change_percent': round(change_percent, 2),
                     'volume': int(latest.get('volume', 1_000_000_000)),
                     'transaction_count': int(latest.get('transaction_count', 100_000))
@@ -630,10 +631,20 @@ class VNStockAPIVNStocks:
                 else:
                     change_percent = 0
                 
+                # Handle date formatting properly
+                if hasattr(row.name, 'strftime'):
+                    date_str = row.name.strftime('%Y-%m-%d')
+                elif hasattr(row, 'time') and hasattr(row['time'], 'strftime'):
+                    date_str = row['time'].strftime('%Y-%m-%d')
+                else:
+                    # Fallback: use index as date offset from start_date
+                    date_obj = start_date + timedelta(days=len(historical_data))
+                    date_str = date_obj.strftime('%Y-%m-%d')
+                
                 historical_data.append({
-                    'date': row.name.strftime('%Y-%m-%d') if hasattr(row.name, 'strftime') else str(row.name),
+                    'date': date_str,
                     'symbol': symbol,
-                    'price': round(row['close'], 2),
+                    'price': round(row['close'] * 1000, 2),  # Convert to VND
                     'volume': int(row.get('volume', 0)),
                     'change_percent': round(change_percent, 2)
                 })
