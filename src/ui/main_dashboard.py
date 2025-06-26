@@ -60,10 +60,16 @@ class TradingDashboard:
         
     def render_header(self):
         """Render header section"""
-        st.markdown("""
+        # Get current time in Vietnam timezone
+        current_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        
+        st.markdown(f"""
         <div class="header-container">
             <h1>🇻🇳 AI Trading Team Vietnam</h1>
-            <p>Hệ thống phân tích đầu tư chứng khoán Việt Nam với 3 AI Agents chuyên nghiệp</p>
+            <span>Hệ thống phân tích đầu tư chứng khoán Việt Nam với 3 AI Agents chuyên nghiệp</span>
+            <p style="font-size: 14px; color: #fffff; margin-top: 5px;">
+                🕒 Cập nhật lúc: {current_time} (GMT+7)
+            </p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -81,10 +87,12 @@ class TradingDashboard:
             with col1:
                 vn_index = market_data.get('vn_index', {})
                 delta = vn_index.get('change', 0)
+                vn_index_value = vn_index.get('value', 1200)
+                change_percent = vn_index.get('change_percent', 0)
                 st.metric(
                     "VN-Index",
-                    f"{vn_index.get('value', 1200):.2f}",
-                    delta=f"{delta:+.2f} ({vn_index.get('change_percent', 0):+.2f}%)"
+                    f"{vn_index_value:,.2f}",
+                    delta=f"{delta:+,.2f} ({change_percent:+.2f}%)"
                 )
             
             with col2:

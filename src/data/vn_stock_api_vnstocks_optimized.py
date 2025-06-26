@@ -314,8 +314,8 @@ class VNStockAPIVNStocks:
                     change_percent = 0
                 
                 return {
-                    'value': round(float(current_value) * 1000, 2),
-                    'change': round(float(change) * 1000, 2),
+                    'value': round(float(current_value), 2),
+                    'change': round(float(change), 2),
                     'change_percent': round(change_percent, 2),
                     'volume': int(latest.get('volume', 1_000_000_000))
                 }
@@ -327,7 +327,7 @@ class VNStockAPIVNStocks:
             
             # Realistic fallback
             import random
-            base_index = 1274
+            base_index = 1363.08  # Current realistic VN-Index level
             variation = random.uniform(-0.02, 0.02)
             current_index = base_index * (1 + variation)
             
@@ -407,7 +407,7 @@ class VNStockAPIVNStocks:
     def _generate_fallback_market_overview(self) -> Dict[str, Any]:
         """Generate fallback market overview"""
         return {
-            'vn_index': {'value': 1200, 'change': 0, 'change_percent': 0},
+            'vn_index': {'value': 1363.08, 'change': -3.5, 'change_percent': -0.26},
             'top_gainers': [],
             'top_losers': [],
             'foreign_flows': {'net_value': 250_000_000},
