@@ -1,6 +1,7 @@
 """
-Vietnamese Stock Market API Integration using VNStocks
+Vietnamese Stock Market API Integration using VNStocks - Optimized Version
 Tích hợp data từ VNStocks - thư viện chính thức cho thị trường chứng khoán Việt Nam
+Phiên bản tối ưu chỉ giữ lại các tính năng thực sự được sử dụng trong nghiệp vụ hiện tại
 """
 
 import asyncio
@@ -47,7 +48,7 @@ class VNStockData:
 class VNStockAPIVNStocks:
     """
     API client cho Vietnamese stock market data sử dụng VNStocks
-    Thay thế cho mock data với real data từ VNStocks APIs
+    Phiên bản tối ưu chỉ giữ lại các tính năng thực sự được sử dụng
     """
     
     def __init__(self):
@@ -680,30 +681,7 @@ class VNStockAPIVNStocks:
     
 
 
-# Utility functions compatible với hệ thống hiện tại
-async def get_multiple_stocks(symbols: List[str]) -> Dict[str, VNStockData]:
-    """
-    Lấy data cho multiple stocks concurrently sử dụng VNStocks
-    
-    Args:
-        symbols: List of stock symbols
-        
-    Returns:
-        Dict mapping symbol to stock data
-    """
-    api = VNStockAPIVNStocks()
-    
-    tasks = [api.get_stock_data(symbol) for symbol in symbols]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    stock_data = {}
-    for symbol, result in zip(symbols, results):
-        if isinstance(result, VNStockData):
-            stock_data[symbol] = result
-        else:
-            logger.error(f"❌ Failed to fetch data for {symbol}: {result}")
-    
-    return stock_data
+# Utility functions
 
 def format_currency_vnd(amount: float) -> str:
     """Format số tiền VND"""
@@ -716,61 +694,3 @@ def format_currency_vnd(amount: float) -> str:
     else:
         return f"{amount:.0f} VND"
 
-def calculate_technical_indicators(prices: List[float]) -> Dict[str, float]:
-    """
-    Calculate basic technical indicators
-    
-    Args:
-        prices: List of historical prices
-        
-    Returns:
-        Dict: Technical indicators
-    """
-    if len(prices) < 20:
-        return {}
-    
-    try:
-        current_price = prices[-1]
-        
-        # Simple Moving Averages
-        sma_5 = sum(prices[-5:]) / 5
-        sma_20 = sum(prices[-20:]) / 20
-        
-        # RSI calculation (simplified)
-        gains = []
-        losses = []
-        for i in range(1, min(15, len(prices))):
-            change = prices[i] - prices[i-1]
-            if change > 0:
-                gains.append(change)
-                losses.append(0)
-            else:
-                gains.append(0)
-                losses.append(abs(change))
-        
-        avg_gain = sum(gains) / len(gains) if gains else 0
-        avg_loss = sum(losses) / len(losses) if losses else 0
-        
-        if avg_loss == 0:
-            rsi = 100
-        else:
-            rs = avg_gain / avg_loss
-            rsi = 100 - (100 / (1 + rs))
-        
-        # Support and Resistance
-        recent_high = max(prices[-10:])
-        recent_low = min(prices[-10:])
-        
-        return {
-            'current_price': current_price,
-            'sma_5': round(sma_5, 2),
-            'sma_20': round(sma_20, 2),
-            'rsi': round(rsi, 2),
-            'support': recent_low,
-            'resistance': recent_high,
-            'trend': 'Bullish' if current_price > sma_20 else 'Bearish'
-        }
-        
-    except Exception as e:
-        logger.error(f"❌ Error calculating technical indicators: {e}")
-        return {} 
